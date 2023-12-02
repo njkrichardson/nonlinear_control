@@ -131,9 +131,10 @@ def main(args):
     experiment_directory = setup_experiment_directory("car_control")
     log = setup_logger(__name__, custom_handle=experiment_directory / "log.out")
 
-    for t in range(args.num_tries): 
+    for iteration in range(args.num_tries): 
+        log.info(f"Starting {iteration=}")
         # run control 
-        key: ndarray = npr.PRNGKey(int(time.time()), + int(args.slurm_id))
+        key: ndarray = npr.PRNGKey(int(time.time()) + int(args.slurm_id))
         avg, solver, x0, goal_default, obstacles, U, X = run_control(key)
 
         final_error: float = np.linalg.norm(X[-1, :2] - goal_default[:2])
@@ -151,7 +152,7 @@ def main(args):
                 U=U, 
                 X=X
                 )
-        serialize(result, (experiment_directory / f"result_{t}").as_posix())
+        serialize(result, (experiment_directory / f"result_{iteration}").as_posix())
 
         fig, ax = render_scene(obstacles)
         ax.plot(X[:, 0], X[:, 1], 'k-', linewidth=1)
@@ -172,11 +173,10 @@ def main(args):
         ax.add_patch(plt.Circle([goal_default[0], goal_default[1]], 0.1, color='r', alpha=0.5))
 
         ax.set_aspect('equal')
-        plt.savefig(experiment_directory / f"solution_{t}") 
+        plt.savefig(experiment_directory / f"solution_{iteration}") 
         plt.close()
 
 if __name__=="__main__": 
     config.update('jax_enable_x64', True)
-#    config.update('jax_disable_jit', True)
     args = parser.parse_args()
     main(args) 
