@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--results-dir", type=str, required=True)
 parser.add_argument("--save-path", type=str, required=True)
 parser.add_argument("--analyze-only", action="store_true") 
+parser.add_argument("--num-video-limit", type=int, default=1_000)
 parser.add_argument("--mpl-backend", default="Agg", type=str) 
 
 def process_result(path: Path) -> ndarray: 
@@ -45,6 +46,8 @@ def process_result(path: Path) -> ndarray:
         ax.set_aspect('equal')
 
         image: ndarray = image_from_figure(fig)
+        plt.close()
+
         return image 
 
     images: List[ndarray] = [] 
@@ -66,11 +69,16 @@ def main(args):
     results_directories: List[Path] = glob((Path(args.results_dir) / "*").as_posix()) 
     results: List[Path] = [] 
 
-    for dir in tqdm.tqdm(results_directories): 
+    for i, dir in enumerate(results_directories): 
         results_paths: List[Path] = glob((Path(dir) / "*.pkl").as_posix())
         results.extend(results_paths)
 
+
+    if len(results) > args.num_video_limit: 
+        results = results[:args.num_video_limit] # TODO, don't even collect them! 
+
     num_videos: int = len(results) 
+
 
     # process the first result to get the shapes correct and estimate the data size 
     video: ndarray = process_result(results[0])
@@ -93,26 +101,26 @@ def main(args):
     log.info("=" * 20 + "\tESTIMATED MEMORY REQUIREMENTS\t" + "="*20)
     log.info(f"{num_videos=}")
     log.info(f"memory per video={human_bytes_str(video_num_bytes)}")
-    log.info(f"total memory required={human_bytes_str(video_num_bytes)}")
+    log.info(f"total memory required={human_bytes_str(total_num_bytes)}")
     log.info("=" * 20 + "\tESTIMATED MEMORY REQUIREMENTS\t" + "="*20)
     log.info("\n\n")
 
     if args.analyze_only: 
         sys.exit(0)
 
-    videos: ndarray = np.empty(num_videos, num_channels, frames_per_video, frame_height, frame_width)
+    videos: ndarray = np.empty((num_videos, num_channels, frames_per_video, frame_height, frame_width), dtype=video.dtype)
     videos[0] = video 
-    i: int = 1 
+    i: int = 1
 
-    for result in (progress_bar := tqdm.tqdm(results)): 
+    for result in (progress_bar := tqdm.tqdm(results[1:])): 
         progress_bar.set_description(f"Processing {result=}")
-        process_result(result) 
-        videos[i] = process_result(result)
+        video: ndarray = process_result(result) 
+        videos[i] = video
         i += 1
 
-    save_path: Path = Path(args.save_path) / "videos"
+    save_path: Path = Path(args.save_path) / "videos.pkl"
     serialize(videos, save_path)
-    log.info(f"Saved videos to {save_path=}")
+    log.info(f"Saved videos to {save_path.as_posix()}")
 
 if __name__=="__main__": 
     args = parser.parse_args()

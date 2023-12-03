@@ -5,8 +5,11 @@ import pickle
 from typing import Any, List, Sequence, Tuple, Union
 
 def serialize(obj: Any, location: Path):
-    if location.as_posix()[-4:] != ".pkl":
-        location = location / ".pkl"
+    if isinstance(location, str): 
+        location = Path(location)
+
+    if location.stem != ".pkl":
+        location = location.with_suffix(".pkl")
 
     with open(location, "wb") as handle:
         pickle.dump(obj, handle, protocol=pickle.HIGHEST_PROTOCOL)
