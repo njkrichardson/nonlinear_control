@@ -16,6 +16,18 @@ def image_from_figure(figure, dpi: int=128) -> ndarray:
     io_buf.close()
     return img_arr
 
+def video_to_frames(video: ndarray, save_path: Path) -> None: 
+    video: ndarray = np.transpose(video, (3, 0, 1, 2))
+    num_frames: int = video.shape[0] 
+
+    for i in range(num_frames): 
+        plt.figure() 
+        plt.imshow(video[i]) 
+        plt.xticks([])
+        plt.yticks([])
+        plt.savefig(Path(save_path) / f"frame_{i}", bbox_inches='tight', pad_inches=0)
+        plt.close()
+
 def make_car(x: ndarray, u: ndarray, ax): 
     position: ndarray = x[:2]
     heading: float = np.rad2deg(x[-1])
