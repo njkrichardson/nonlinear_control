@@ -19,7 +19,7 @@ from visuals import render_scene, make_car
 from utils import setup_logger, serialize, setup_experiment_directory
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--num-tries", default=10, type=int)
+parser.add_argument("--num-tries", default=300, type=int)
 parser.add_argument("--slurm_id", default=0, type=int)
 
 def car_dynamics(x: ndarray, u: ndarray, t: int) -> ndarray:
@@ -133,48 +133,51 @@ def main(args):
 
     for iteration in range(args.num_tries): 
         log.info(f"Starting {iteration=}")
+        try: 
         # run control 
-        key: ndarray = npr.PRNGKey(int(time.time()) + int(args.slurm_id))
-        avg, solver, x0, goal_default, obstacles, U, X = run_control(key)
+            key: ndarray = npr.PRNGKey(int(time.time()) + int(args.slurm_id))
+            avg, solver, x0, goal_default, obstacles, U, X = run_control(key)
+            final_error: float = np.linalg.norm(X[-1, :2] - goal_default[:2])
+            if final_error >= 0.2: 
+                log.info(f"Poor optimization, not saving")
+                continue 
 
-        final_error: float = np.linalg.norm(X[-1, :2] - goal_default[:2])
-        if final_error >= 0.2: 
-            log.info(f"Poor optimization, not saving")
-            break 
+            result = dict(
+                    key=key, 
+                    avg=avg, 
+                    T=solver._T, 
+                    x0=x0, 
+                    goal_default=goal_default, 
+                    obstacles=obstacles, 
+                    U=U, 
+                    X=X
+                    )
+            serialize(result, (experiment_directory / f"result_{iteration}").as_posix())
 
-        result = dict(
-                key=key, 
-                avg=avg, 
-                T=solver._T, 
-                x0=x0, 
-                goal_default=goal_default, 
-                obstacles=obstacles, 
-                U=U, 
-                X=X
-                )
-        serialize(result, (experiment_directory / f"result_{iteration}").as_posix())
+            fig, ax = render_scene(obstacles)
+            ax.plot(X[:, 0], X[:, 1], 'k-', linewidth=1)
 
-        fig, ax = render_scene(obstacles)
-        ax.plot(X[:, 0], X[:, 1], 'k-', linewidth=1)
+            for t in np.arange(0, solver._T+1, 3):
+              x = X[t, :2]
+              dx = np.array([0.2 * np.sin(X[t, 2]), 0.2 * np.cos(X[t, 2])])
+              y = x + dx 
+              L = np.linalg.norm(y - x) 
+              heading = np.arccos(dx[0] / L)
+              make_car(np.array([x[0], x[1], heading]), np.array([U[t, 1], -U[t, 0]]), ax)
 
-        for t in np.arange(0, solver._T+1, 3):
-          x = X[t, :2]
-          dx = np.array([0.2 * np.sin(X[t, 2]), 0.2 * np.cos(X[t, 2])])
-          y = x + dx 
-          L = np.linalg.norm(y - x) 
-          heading = np.arccos(dx[0] / L)
-          make_car(np.array([x[0], x[1], heading]), np.array([U[t, 1], -U[t, 0]]), ax)
+            ax.scatter(avg[0], avg[1], c="tab:red")
+            
+            # start
+            ax.add_patch(plt.Circle([x0[0], x0[1]], 0.1, color='tab:blue', alpha=0.5))
+            # end
+            ax.add_patch(plt.Circle([goal_default[0], goal_default[1]], 0.1, color='r', alpha=0.5))
 
-        ax.scatter(avg[0], avg[1], c="tab:red")
-        
-        # start
-        ax.add_patch(plt.Circle([x0[0], x0[1]], 0.1, color='tab:blue', alpha=0.5))
-        # end
-        ax.add_patch(plt.Circle([goal_default[0], goal_default[1]], 0.1, color='r', alpha=0.5))
-
-        ax.set_aspect('equal')
-        plt.savefig(experiment_directory / f"solution_{iteration}") 
-        plt.close()
+            ax.set_aspect('equal')
+            plt.savefig(experiment_directory / f"solution_{iteration}") 
+            plt.close()
+        except: 
+            log.info(f"Exception occured!")
+            continue 
 
 if __name__=="__main__": 
     config.update('jax_enable_x64', True)
