@@ -5,8 +5,8 @@ import pickle
 from typing import Any, List, Sequence, Tuple, Union
 
 def serialize(obj: Any, location: Path):
-    if location[-4:] != ".pkl":
-        location += ".pkl"
+    if location.as_posix()[-4:] != ".pkl":
+        location = location / ".pkl"
 
     with open(location, "wb") as handle:
         pickle.dump(obj, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -71,3 +71,15 @@ def setup_logger(name: str, level: int = logging.INFO, custom_handle: Path=None)
         logger.propagate = False
 
     return logger
+
+def human_bytes_str(num_bytes: int) -> str:
+    units = ("B", "KB", "MB", "GB")
+    power = 2**10
+
+    for unit in units:
+        if num_bytes < power:
+            return f"{num_bytes:.1f} {unit}"
+
+        num_bytes /= power
+
+    return f"{num_bytes:.1f} TB"

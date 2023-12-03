@@ -1,3 +1,4 @@
+import io 
 from pathlib import Path
 from typing import List 
 
@@ -6,6 +7,14 @@ from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt 
 
 from constants import ndarray 
+
+def image_from_figure(figure, dpi: int=128) -> ndarray: 
+    io_buf = io.BytesIO()
+    figure.savefig(io_buf, format='raw', dpi=dpi)
+    io_buf.seek(0)
+    img_arr = np.reshape(np.frombuffer(io_buf.getvalue(), dtype=np.uint8), newshape=(int(figure.bbox.bounds[3]), int(figure.bbox.bounds[2]), -1))
+    io_buf.close()
+    return img_arr
 
 def make_car(x: ndarray, u: ndarray, ax): 
     position: ndarray = x[:2]
@@ -53,8 +62,8 @@ def make_car(x: ndarray, u: ndarray, ax):
     ax.add_patch(left_wheel) 
     ax.add_patch(right_wheel)
 
-def render_scene(obstacles: List[ndarray], path: Path=None, obstacle_size: float=0.2, world_range=((-1., -1.), (2., 2.))):
-  fig = plt.figure(figsize=(5, 5))
+def render_scene(obstacles: List[ndarray], path: Path=None, obstacle_size: float=0.2, world_range=((-1., -1.), (2., 2.)), **kwargs):
+  fig = plt.figure(figsize=(3, 3), dpi=kwargs.get("dpi", 128))
   ax = fig.add_subplot(111)
   plt.grid(False)
 
