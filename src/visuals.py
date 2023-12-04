@@ -5,6 +5,7 @@ from typing import List
 import jax.numpy as np 
 from matplotlib.patches import Rectangle 
 import matplotlib.pyplot as plt 
+from PIL import Image
 
 from constants import ndarray 
 
@@ -17,7 +18,7 @@ def image_from_figure(figure, dpi: int=128) -> ndarray:
     return img_arr
 
 def video_to_frames(video: ndarray, save_path: Path) -> None: 
-    video: ndarray = np.transpose(video, (3, 0, 1, 2))
+    video: ndarray = np.transpose(video, (1, 2, 3, 0))
     num_frames: int = video.shape[0] 
 
     for i in range(num_frames): 
@@ -75,7 +76,7 @@ def make_car(x: ndarray, u: ndarray, ax):
     ax.add_patch(right_wheel)
 
 def render_scene(obstacles: List[ndarray], path: Path=None, obstacle_size: float=0.2, world_range=((-1., -1.), (2., 2.)), **kwargs):
-  fig = plt.figure(figsize=(3, 3), dpi=kwargs.get("dpi", 128))
+  fig = plt.figure(figsize=(1, 1), dpi=kwargs.get("dpi", 128))
   ax = fig.add_subplot(111)
   plt.grid(False)
 
