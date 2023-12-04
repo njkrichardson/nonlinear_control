@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import List 
 
 import jax.numpy as np 
+import matplotlib 
+matplotlib.use("Agg")
 from matplotlib.patches import Rectangle 
 import matplotlib.pyplot as plt 
 from PIL import Image
@@ -22,8 +24,8 @@ def video_to_frames(video: ndarray, save_path: Path) -> None:
     num_frames: int = video.shape[0] 
 
     for i in range(num_frames): 
-        plt.figure() 
-        plt.imshow(video[i]) 
+        plt.figure(figsize=(3, 3)) 
+        plt.imshow(video[i], cmap="Greys_r") 
         plt.xticks([])
         plt.yticks([])
         plt.savefig(Path(save_path) / f"frame_{i}", bbox_inches='tight', pad_inches=0)
@@ -44,8 +46,8 @@ def make_car(x: ndarray, u: ndarray, ax):
         body_height, 
         angle=heading, 
         rotation_point=tuple(position.tolist()), 
-        edgecolor=(0, 0, 0, 0.8), 
-        facecolor=(0, 0, 0, 0.15), 
+        edgecolor=(0, 0, 0, 1.), 
+        facecolor=(0, 0, 0, 0.3), 
         )
 
     f_center = np.array([x[0] + body_width * np.cos(x[-1]), x[1] + body_width * np.sin(x[-1])])
@@ -81,13 +83,7 @@ def render_scene(obstacles: List[ndarray], path: Path=None, obstacle_size: float
   plt.grid(False)
 
   for ob in obstacles:
-    ax.add_patch(plt.Rectangle((ob[0], ob[1]), obstacle_size, obstacle_size, color='k', alpha=0.3))
-
-  ax.set_xlim([world_range[0][0], world_range[1][0]])
-  ax.set_ylim([world_range[0][1], world_range[1][1]])
-  ax.set_xticks([world_range[0][0], world_range[1][0]])
-  ax.set_yticks([world_range[0][1], world_range[1][1]])
-  ax.set_aspect('equal')
+    ax.add_patch(plt.Rectangle((ob[0], ob[1]), obstacle_size, obstacle_size, color='k', alpha=0.4))
 
   if path is None: 
       return fig, ax

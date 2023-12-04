@@ -22,8 +22,8 @@ parser.add_argument("--analyze-only", action="store_true")
 parser.add_argument("--num-video-limit", type=int, default=1_000)
 parser.add_argument("--mpl-backend", default="Agg", type=str) 
 
-def rgb_to_gray(rgb):
-    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+parser.add_argument("--image-size", default=64, type=int) 
+parser.add_argument("--no-obstacles", action="store_true") 
 
 def process_result(args, path: Path, i=0) -> ndarray: 
     results: dict = deserialize(path)  
@@ -35,27 +35,56 @@ def process_result(args, path: Path, i=0) -> ndarray:
     goal_default: ndarray = results['goal_default'] 
 
     def render_state(X: ndarray, U: ndarray, t: int) -> ndarray: 
-        fig, ax = render_scene(obstacles, production=True)
+        if args.no_obstacles: 
+            fig, ax = render_scene([], production=True, dpi=args.image_size)
+        else: 
+            fig, ax = render_scene(obstacles, production=True, dpi=args.image_size)
+
+        # infer box range 
+        min_x: float = np.min(np.array([np.min(X[:, 0]), np.min(obstacles[:, 0])])) - 0.15
+        max_x: float = np.max(np.array([np.max(X[:, 0]), np.max(obstacles[:, 0])])) + 0.15
+
+        min_y: float = np.min(np.array([np.min(X[:, 1]), np.min(obstacles[:, 1])])) - 0.15
+        max_y: float = np.max(np.array([np.max(X[:, 1]), np.max(obstacles[:, 1])])) + 0.15
+
+        y_range = max_y - min_y 
+        x_range = max_x - min_x 
+        
+        if y_range > x_range: 
+            padding = (y_range - x_range) / 2 
+            min_x -= padding 
+            max_x += padding 
+        else: 
+            padding = (x_range - y_range) / 2 
+            min_y -= padding 
+            max_y += padding 
+
+        ax.set_xlim(min_x, max_x)
+        ax.set_ylim(min_y, max_y)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_aspect('equal')
+
         x = X[t, :2]
         dx = np.array([0.2 * np.sin(X[t, 2]), 0.2 * np.cos(X[t, 2])])
         y = x + dx 
         L = np.linalg.norm(y - x) 
         heading = np.arccos(dx[0] / L)
         make_car(np.array([x[0], x[1], heading]), np.array([U[t, 1], -U[t, 0]]), ax)
-        ax.set_aspect('equal')
 
-        image: ndarray = image_from_figure(fig)
+        ax.set_aspect('equal')
+        image: ndarray = image_from_figure(fig, dpi=args.image_size)
         plt.close()
 
         return image 
 
     images: List[ndarray] = [] 
 
-    for t in range(0, num_timesteps, 3): 
+    for t in range(0, num_timesteps, 2): 
         image: ndarray = np.array(render_state(X, U, t)[..., :3])
         color_image: Image = Image.fromarray(image) 
         grayscale_image: ndarray = np.array(color_image.convert('L'))[..., None]
-        images.append(image) 
+        images.append(grayscale_image) 
 
     video: ndarray = np.array(images) 
 
